@@ -8,10 +8,15 @@ import {
   getProducts,
   createProduct,
   updateProduct,
-  deleteProduct,
-  getAddonGroups,
-  createAddonGroup
+  deleteProduct
 } from '../controller/apiController.js';
+
+import {
+  getAddonGroups,
+  createAddonGroup,
+  updateAddonGroup,
+  deleteAddonGroup
+} from '../controller/addonController.js';
 
 import {
   getKdsTickets,
@@ -108,9 +113,11 @@ router.put('/categories/:id', updateCategory);
 router.put('/categories/:id/status', updateCategoryStatus);
 router.delete('/categories/:id', deleteCategory);
 
-// Addons
+// Addons (MongoDB CRUD)
 router.get('/addons', getAddonGroups);
 router.post('/addons', createAddonGroup);
+router.put('/addons/:id', updateAddonGroup);
+router.delete('/addons/:id', deleteAddonGroup);
 
 // Inventory
 router.get('/inventory', getInventory);
