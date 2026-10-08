@@ -76,7 +76,13 @@ export const getKdsTickets = async (req, res) => {
 // ==========================================
 export const getKdsTicketById = async (req, res) => {
   try {
-    const ticket = await KdsTicket.findById(req.params.id);
+    const { id } = req.params;
+    const ticket = await KdsTicket.findOne({
+      $or: [
+        { ticketNo: id },
+        ...(id.match(/^[0-9a-fA-F]{24}$/) ? [{ _id: id }] : []),
+      ],
+    });
 
     if (!ticket) {
       return res.status(404).json({
@@ -103,7 +109,13 @@ export const getKdsTicketById = async (req, res) => {
 // ==========================================
 export const advanceKdsTicket = async (req, res) => {
   try {
-    const ticket = await KdsTicket.findById(req.params.id);
+    const { id } = req.params;
+    const ticket = await KdsTicket.findOne({
+      $or: [
+        { ticketNo: id },
+        ...(id.match(/^[0-9a-fA-F]{24}$/) ? [{ _id: id }] : []),
+      ],
+    });
 
     if (!ticket) {
       return res.status(404).json({
@@ -153,7 +165,12 @@ export const advanceKdsTicket = async (req, res) => {
 export const toggleKdsItemCheck = async (req, res) => {
   try {
     const { id, itemId } = req.params;
-    const ticket = await KdsTicket.findById(id);
+    const ticket = await KdsTicket.findOne({
+      $or: [
+        { ticketNo: id },
+        ...(id.match(/^[0-9a-fA-F]{24}$/) ? [{ _id: id }] : []),
+      ],
+    });
 
     if (!ticket) {
       return res.status(404).json({
@@ -189,7 +206,13 @@ export const toggleKdsItemCheck = async (req, res) => {
 // ==========================================
 export const deleteKdsTicket = async (req, res) => {
   try {
-    const ticket = await KdsTicket.findByIdAndDelete(req.params.id);
+    const { id } = req.params;
+    const ticket = await KdsTicket.findOneAndDelete({
+      $or: [
+        { ticketNo: id },
+        ...(id.match(/^[0-9a-fA-F]{24}$/) ? [{ _id: id }] : []),
+      ],
+    });
 
     if (!ticket) {
       return res.status(404).json({
