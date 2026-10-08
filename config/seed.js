@@ -47,11 +47,92 @@ const seedData = async () => {
   ]);
 
   await Table.insertMany([
-    { tableId: 'T1', floor: 'Ground Floor', seats: 4, status: 'available' },
-    { tableId: 'T2', floor: 'Ground Floor', seats: 4, status: 'available' },
-    { tableId: 'T3', floor: 'Ground Floor', seats: 6, status: 'occupied' },
-    { tableId: 'V1', floor: 'VIP Cabin', seats: 6, status: 'reserved' }
-  ]);
+  // Ground Floor
+  {
+    tableId: 'T1',
+    floor: 'Ground Floor',
+    seats: 4,
+    status: 'available'
+  },
+  {
+    tableId: 'T2',
+    floor: 'Ground Floor',
+    seats: 4,
+    status: 'available'
+  },
+  {
+    tableId: 'T3',
+    floor: 'Ground Floor',
+    seats: 4,
+    status: 'occupied'
+  },
+  {
+    tableId: 'T4',
+    floor: 'Ground Floor',
+    seats: 8,
+    status: 'available'
+  },
+  {
+    tableId: 'T5',
+    floor: 'Ground Floor',
+    seats: 2,
+    status: 'available'
+  },
+  {
+    tableId: 'T6',
+    floor: 'Ground Floor',
+    seats: 4,
+    status: 'available'
+  },
+
+  // First Floor
+  {
+    tableId: 'T7',
+    floor: 'First Floor',
+    seats: 4,
+    status: 'available'
+  },
+  {
+    tableId: 'T8',
+    floor: 'First Floor',
+    seats: 4,
+    status: 'reserved'
+  },
+  {
+    tableId: 'T9',
+    floor: 'First Floor',
+    seats: 6,
+    status: 'available'
+  },
+
+  // Terrace
+  {
+    tableId: 'T10',
+    floor: 'Terrace',
+    seats: 4,
+    status: 'available'
+  },
+  {
+    tableId: 'T11',
+    floor: 'Terrace',
+    seats: 6,
+    status: 'available'
+  },
+
+  // VIP
+  {
+    tableId: 'V1',
+    floor: 'VIP Cabin',
+    seats: 6,
+    status: 'available'
+  },
+  {
+    tableId: 'V2',
+    floor: 'VIP Cabin',
+    seats: 8,
+    status: 'available'
+  }
+]);
 
   await Customer.insertMany([
     { name: 'Riya Sharma', loyalty: 'Gold', totalSpent: 8450, visits: 18 },

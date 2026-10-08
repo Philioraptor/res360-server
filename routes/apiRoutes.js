@@ -83,20 +83,24 @@ import {
 
 const router = express.Router();
 
+// Health
 router.get('/health', getHealthCheck);
 
+// Dashboard
 router.get('/dashboard', getDashboardSummary);
 router.get('/dashboard/summary', getDashboardSummary);
 
+// Menu
 router.get('/menu', getMenu);
 router.get('/menu/categories', getMenuCategories);
 
+// Products
 router.get('/products', getProducts);
 router.post('/products', createProduct);
 router.put('/products/:id', updateProduct);
 router.delete('/products/:id', deleteProduct);
 
-// Category Routes (CRUD)
+// Categories
 router.get('/categories', getCategories);
 router.get('/categories/:id', getCategoryById);
 router.post('/categories', createCategory);
@@ -104,10 +108,11 @@ router.put('/categories/:id', updateCategory);
 router.put('/categories/:id/status', updateCategoryStatus);
 router.delete('/categories/:id', deleteCategory);
 
+// Addons
 router.get('/addons', getAddonGroups);
 router.post('/addons', createAddonGroup);
 
-// Inventory Routes (CRUD)
+// Inventory
 router.get('/inventory', getInventory);
 router.get('/inventory/low-stock', getLowStockInventory);
 router.get('/inventory/:id', getInventoryItemById);
@@ -115,14 +120,14 @@ router.post('/inventory', createInventoryItem);
 router.put('/inventory/:id', updateInventoryItem);
 router.delete('/inventory/:id', deleteInventoryItem);
 
-// Table Routes (CRUD)
+// Tables
 router.get('/tables', getTables);
 router.get('/tables/:id', getTableById);
 router.post('/tables', createTable);
 router.put('/tables/:id/status', updateTableStatus);
 router.delete('/tables/:id', deleteTable);
 
-// KDS Routes (CRUD)
+// KDS
 router.get('/kds/tickets', getKdsTickets);
 router.get('/kds/tickets/:id', getKdsTicketById);
 router.post('/kds/tickets', createKdsTicket);
@@ -130,31 +135,31 @@ router.put('/kds/tickets/:id/advance', advanceKdsTicket);
 router.put('/kds/tickets/:id/items/:itemId/check', toggleKdsItemCheck);
 router.delete('/kds/tickets/:id', deleteKdsTicket);
 
-// Customer Routes (CRUD)
+// Customers
 router.get('/customers', getCustomers);
 router.get('/customers/:id', getCustomerById);
 router.post('/customers', createCustomer);
 router.put('/customers/:id', updateCustomer);
 router.delete('/customers/:id', deleteCustomer);
 
-// Order Routes (CRUD)
+// Orders
 router.get('/orders', getOrders);
 router.get('/orders/:id', getOrderById);
 router.post('/orders', createOrder);
 router.put('/orders/:id/status', updateOrderStatus);
 router.delete('/orders/:id', deleteOrder);
 
-// Reports & Analytics Routes
+// Reports
 router.get('/reports', getReports);
 router.get('/reports/sales', getSaleReport);
 router.get('/reports/customers', getCustomerReports);
 
-// Settings Routes (Persistent in MongoDB)
+// Settings
 router.get('/settings', getSettings);
 router.put('/settings', updateSettings);
 router.post('/settings/reset', resetSettings);
 
-// AI Chatbot Analyst Routes (Live MongoDB-backed Intelligence)
+// Chatbot
 router.get('/chatbot', getChatbotSuggestions);
 router.post('/chatbot/message', sendChatbotMessage);
 

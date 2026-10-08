@@ -3,6 +3,7 @@ import { createOrderAndTicket } from '../services/orderService.js';
 import { advanceTicketById, toggleTicketItemCheck } from '../services/kdsService.js';
 import Product from "../models/Product.js";
 import Category from "../models/Category.js";
+import Table from "../models/Table.js";
 const menuData = [
   { id: 1, name: 'Paneer Tikka', category: 'Starters', type: 'Veg', price: 280 },
   { id: 2, name: 'Chicken 65', category: 'Starters', type: 'Non-Veg', price: 320 },
@@ -372,46 +373,137 @@ export const getLowStockInventory = (req, res) => {
   sendSuccess(res, 200, 'Low stock inventory fetched', lowStock);
 };
 
-export const getTables = (req, res) => {
-  sendSuccess(res, 200, 'Table layout fetched', floorTables);
-};
+// ===============================
+// TABLE MANAGEMENT
+// ===============================
 
-export const createTable = (req, res) => {
-  const { floorName = 'Ground Floor', seats = 4, status = 'available' } = req.body;
+export const getTables = async (req, res) => {
+  try {
+    const tables = await Table.find().sort({
+      floor: 1,
+      tableId: 1,
+    });
 
-  if (!floorTables[floorName]) {
-    floorTables[floorName] = [];
+    const floorTables = {};
+
+    tables.forEach((table) => {
+      if (!floorTables[table.floor]) {
+        floorTables[table.floor] = [];
+      }
+
+      floorTables[table.floor].push({
+        id: table.tableId,
+        seats: table.seats,
+        status: table.status,
+      });
+    });
+
+    sendSuccess(res, 200, 'Table layout fetched', floorTables);
+  } catch (error) {
+    console.error('Get tables error:', error);
+    sendError(res, 500, 'Failed to fetch tables');
   }
-
-  const newTable = {
-    id: `T${Date.now().toString().slice(-4)}`,
-    seats: Number(seats),
-    status
-  };
-
-  floorTables[floorName].push(newTable);
-  sendSuccess(res, 201, 'Table added', newTable);
 };
 
-export const updateTableStatus = (req, res) => {
-  const { id } = req.params;
-  const { status } = req.body;
 
-  let found = null;
-  for (const floorName of Object.keys(floorTables)) {
-    const tableIndex = floorTables[floorName].findIndex((table) => table.id === id);
-    if (tableIndex !== -1) {
-      floorTables[floorName][tableIndex] = { ...floorTables[floorName][tableIndex], status };
-      found = floorTables[floorName][tableIndex];
-      break;
+export const createTable = async (req, res) => {
+  try {
+    const {
+      tableId,
+      floor = 'Ground Floor',
+      seats = 4,
+      status = 'available',
+    } = req.body;
+
+    if (!tableId) {
+      return sendError(res, 400, 'tableId is required');
     }
-  }
 
-  if (!found) {
-    return sendError(res, 404, 'Table not found');
-  }
+    const existingTable = await Table.findOne({ tableId });
 
-  sendSuccess(res, 200, 'Table status updated', found);
+    if (existingTable) {
+      return sendError(res, 409, 'Table already exists');
+    }
+
+    const table = await Table.create({
+      tableId,
+      floor,
+      seats: Number(seats),
+      status,
+    });
+
+    const formattedTable = {
+      id: table.tableId,
+      seats: table.seats,
+      status: table.status,
+    };
+
+    sendSuccess(res, 201, 'Table added', formattedTable);
+  } catch (error) {
+    console.error('Create table error:', error);
+    sendError(res, 500, 'Failed to create table');
+  }
+};
+
+
+export const updateTableStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const allowedStatuses = [
+      'available',
+      'occupied',
+      'reserved',
+      'billing',
+      'cleaning',
+    ];
+
+    if (!allowedStatuses.includes(status)) {
+      return sendError(res, 400, 'Invalid table status');
+    }
+
+    const table = await Table.findOneAndUpdate(
+      { tableId: id },
+      { status },
+      { new: true }
+    );
+
+    if (!table) {
+      return sendError(res, 404, 'Table not found');
+    }
+
+    const formattedTable = {
+      id: table.tableId,
+      seats: table.seats,
+      status: table.status,
+    };
+
+    sendSuccess(res, 200, 'Table status updated', formattedTable);
+  } catch (error) {
+    console.error('Update table status error:', error);
+    sendError(res, 500, 'Failed to update table status');
+  }
+};
+export const deleteTable = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const table = await Table.findOneAndDelete({
+      tableId: id,
+    });
+
+    if (!table) {
+      return sendError(res, 404, 'Table not found');
+    }
+
+    sendSuccess(res, 200, 'Table deleted', {
+      id: table.tableId,
+    });
+  } catch (error) {
+    console.error('Delete table error:', error);
+    sendError(res, 500, 'Failed to delete table');
+  }
 };
 
 export const getKdsTickets = async (req, res) => {
