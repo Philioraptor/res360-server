@@ -24,8 +24,16 @@ const kdsTicketSchema = new mongoose.Schema(
 },
     items: [kdsItemSchema]
   },
-  { timestamps: true }
+  { 
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
+  }
 );
+
+kdsTicketSchema.virtual('id').get(function () {
+  return this._id.toString();
+});
 
 const KdsTicket = mongoose.model('KdsTicket', kdsTicketSchema);
 

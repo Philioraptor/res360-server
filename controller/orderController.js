@@ -1,4 +1,6 @@
 import Order from "../models/Order.js";
+import KdsTicket from "../models/KdsTicket.js";
+import Table from "../models/Table.js";
 import { createOrderAndTicket } from "../services/orderService.js";
 import { createKdsTicket } from "./kdsController.js";
 
@@ -74,14 +76,18 @@ export const getOrderById = async (req, res) => {
 export const createOrder = async (req, res) => {
   try {
     const {
-      restaurantId,
+      restaurantId = null,
       tableId = null,
       userId = null,
       table = "Takeaway",
+      orderType = "dine-in",
+      customerName = "Walk-in Customer",
+      paymentMethod = "Cash",
       items = [],
       taxRate = 5,
       discount = 0,
       sendKitchen = true,
+      total: clientTotal,
     } = req.body;
 
     // 1. Check karo items list khali toh nahi hai
@@ -92,65 +98,108 @@ export const createOrder = async (req, res) => {
       });
     }
 
-    // 2. Agar restaurantId nahi aayi toh fallback default create karo
-    let resId = restaurantId;
-    if (!resId) {
-      // Direct order creation fallback agar restaurantId frontend ne nahi bheji
-      const count = await Order.countDocuments();
-      const orderId = `ORD-${1001 + count}`;
+    // 2. Order ID generate karo (e.g. ORD-1001)
+    const count = await Order.countDocuments();
+    const orderId = `ORD-${1001 + count}`;
 
-      let total = 0;
-      const orderItems = items.map((it) => {
-        const itemPrice = Number(it.price || 0);
-        const itemQty = Number(it.qty || it.quantity || 1);
-        const sub = itemPrice * itemQty;
-        total += sub;
-        return {
-          productId: it.productId || it._id,
-          name: it.name || "Menu Item",
-          qty: itemQty,
-          price: itemPrice,
-          subtotal: sub,
-        };
-      });
+    // 3. Format items and calculate total
+    let calculatedTotal = 0;
+    let itemsCount = 0;
 
-      const newOrder = await Order.create({
-        orderId,
-        table,
-        tableId,
-        userId,
-        items: orderItems,
-        itemsCount: orderItems.length,
-        total,
-        status: "Pending",
-      });
+    const orderItems = items.map((it) => {
+      const itemPrice = Number(it.price || 0);
+      const itemQty = Number(it.qty || it.quantity || 1);
+      const sub = itemPrice * itemQty;
+      calculatedTotal += sub;
+      itemsCount += itemQty;
 
-      return res.status(201).json({
-        success: true,
-        message: "Order created successfully",
-        data: newOrder,
-      });
+      // Agar it._id ya it.productId valid 24-character hex ObjectId ho toh store karo, warna null
+      const rawId = it.productId || it._id;
+      const isValidObjectId = rawId && /^[0-9a-fA-F]{24}$/.test(String(rawId));
+
+      return {
+        productId: isValidObjectId ? rawId : null,
+        menuItemId: String(it.id || it.menuItemId || ""),
+        name: it.name || "Menu Item",
+        qty: itemQty,
+        price: itemPrice,
+        subtotal: sub,
+        category: it.category || "",
+        type: it.type || "Veg",
+      };
+    });
+
+    const tax = (calculatedTotal * Number(taxRate || 0)) / 100;
+    const computedOrderTotal = Math.max(0, calculatedTotal + tax - Number(discount || 0));
+    const finalTotal = clientTotal !== undefined && clientTotal !== null
+      ? Number(clientTotal)
+      : computedOrderTotal;
+
+    // 4. Create new Order in MongoDB
+    const newOrder = await Order.create({
+      orderId,
+      customerName,
+      orderType,
+      paymentMethod,
+      restaurantId,
+      table,
+      tableId,
+      userId,
+      items: orderItems,
+      itemsCount,
+      total: finalTotal,
+      status: "Pending",
+    });
+
+    // 5. Kitchen Order Ticket (KDS) auto-create karo agar sendKitchen true hai
+    let kdsTicket = null;
+    if (sendKitchen) {
+      try {
+        const kdsCount = await KdsTicket.countDocuments();
+        const ticketNo = `KOT-${1001 + kdsCount}`;
+        const formattedOrderType = orderType
+          ? orderType.charAt(0).toUpperCase() + orderType.slice(1)
+          : "Dine-in";
+
+        kdsTicket = await KdsTicket.create({
+          ticketNo,
+          orderType: formattedOrderType,
+          location: table || "Table T1",
+          stage: "new",
+          startTime: new Date(),
+          notes: `Customer: ${customerName} | Mode: ${paymentMethod}`,
+          orderId: newOrder._id,
+          items: orderItems.map((it) => ({
+            name: it.name,
+            qty: it.qty,
+            checked: false,
+          })),
+        });
+      } catch (kdsErr) {
+        console.error("Auto KDS ticket creation error:", kdsErr.message);
+      }
     }
 
-    // 3. Full Service use karke Order + KDS ticket + Bill banana
-    const result = await createOrderAndTicket(
-      {
-        restaurantId: resId,
-        tableId,
-        userId,
-        table,
-        items,
-        taxRate,
-        discount,
-        sendKitchen,
-      },
-      sendKitchen ? createKdsTicket : null
-    );
+    // 6. Table status update karo agar dine-in table ho
+    if (table && table !== "Takeaway") {
+      try {
+        const matchedTableId = table.replace(/^Table\s*/i, "").trim();
+        await Table.findOneAndUpdate(
+          { $or: [{ tableId: matchedTableId }, { tableId: table }] },
+          { status: "occupied" }
+        );
+      } catch (tblErr) {
+        // Table status update is optional
+      }
+    }
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: "Order placed successfully.",
-      data: result,
+      data: {
+        order: newOrder,
+        ticket: kdsTicket,
+      },
     });
   } catch (error) {
     res.status(500).json({

@@ -5,7 +5,13 @@ const orderItemSchema = new mongoose.Schema(
     productId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Product",
-      required: true,
+      default: null,
+      required: false,
+    },
+
+    menuItemId: {
+      type: String,
+      default: null,
     },
 
     name: {
@@ -30,6 +36,16 @@ const orderItemSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+
+    category: {
+      type: String,
+      default: "",
+    },
+
+    type: {
+      type: String,
+      default: "Veg",
+    },
   },
   {
     _id: false,
@@ -42,6 +58,21 @@ const orderSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
+    },
+
+    customerName: {
+      type: String,
+      default: "Walk-in Customer",
+    },
+
+    orderType: {
+      type: String,
+      default: "dine-in",
+    },
+
+    paymentMethod: {
+      type: String,
+      default: "Cash",
     },
 
     restaurantId: {
@@ -94,8 +125,14 @@ const orderSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
 );
+
+orderSchema.virtual("id").get(function () {
+  return this.orderId;
+});
 
 const Order = mongoose.model("Order", orderSchema);
 

@@ -7,9 +7,49 @@ const settingsSchema = new mongoose.Schema(
       default: "Restaurant360 - Main Branch",
     },
 
+    name: {
+      type: String,
+      default: "Restaurant360",
+    },
+
+    phone: {
+      type: String,
+      default: "",
+    },
+
+    address: {
+      type: String,
+      default: "",
+    },
+
+    fssai: {
+      type: String,
+      default: "",
+    },
+
+    gstin: {
+      type: String,
+      default: "",
+    },
+
     taxRate: {
       type: Number,
       default: 5,
+    },
+
+    gst: {
+      type: String,
+      default: "5",
+    },
+
+    serviceCharge: {
+      type: String,
+      default: "0",
+    },
+
+    packingCharge: {
+      type: String,
+      default: "0",
     },
 
     currency: {
@@ -25,6 +65,11 @@ const settingsSchema = new mongoose.Schema(
     autoPrintKOT: {
       type: Boolean,
       default: true,
+    },
+
+    printerName: {
+      type: String,
+      default: "Kitchen Printer",
     },
 
     enableLoyalty: {
