@@ -86,7 +86,18 @@ import {
   sendChatbotMessage
 } from '../controller/chatbotController.js';
 
+import {
+  login,
+  register,
+  getMe
+} from '../controller/authController.js';
+
 const router = express.Router();
+
+// Authentication Routes
+router.post('/auth/login', login);
+router.post('/auth/register', register);
+router.get('/auth/me', getMe);
 
 // Health
 router.get('/health', getHealthCheck);
