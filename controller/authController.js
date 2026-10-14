@@ -61,6 +61,12 @@ export const login = async (req, res) => {
       { expiresIn: "7d" }
     );
 
+    // Helper to calculate days remaining
+    const now = new Date();
+    const expiry = user.licenseExpiresAt ? new Date(user.licenseExpiresAt) : now;
+    const isExpired = expiry <= now;
+    const daysRemaining = isExpired ? 0 : Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
     res.json({
       success: true,
       message: "Login successful",
@@ -71,6 +77,12 @@ export const login = async (req, res) => {
           name: user.name,
           email: user.email,
           role: user.role,
+          subscriptionStatus: isExpired ? "expired" : (user.subscriptionStatus || "trial"),
+          subscriptionPlan: user.subscriptionPlan || "trial",
+          licenseExpiresAt: user.licenseExpiresAt,
+          licenseKey: user.licenseKey || "",
+          daysRemaining,
+          isExpired,
         },
       },
     });
@@ -174,9 +186,23 @@ export const getMe = async (req, res) => {
       });
     }
 
+    const now = new Date();
+    const expiry = user.licenseExpiresAt ? new Date(user.licenseExpiresAt) : now;
+    const isExpired = expiry <= now;
+    const daysRemaining = isExpired ? 0 : Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (isExpired && user.subscriptionStatus !== "expired") {
+      user.subscriptionStatus = "expired";
+      await user.save();
+    }
+
     res.json({
       success: true,
-      data: user,
+      data: {
+        ...user.toObject(),
+        daysRemaining,
+        isExpired,
+      },
     });
   } catch (error) {
     res.status(401).json({

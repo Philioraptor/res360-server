@@ -27,6 +27,33 @@ const userSchema = new mongoose.Schema(
       default: "staff",
     },
 
+    subscriptionStatus: {
+      type: String,
+      enum: ["trial", "active", "expired"],
+      default: "trial",
+    },
+
+    subscriptionPlan: {
+      type: String,
+      enum: ["trial", "monthly", "yearly", "custom"],
+      default: "trial",
+    },
+
+    licenseKey: {
+      type: String,
+      default: "",
+    },
+
+    licenseExpiresAt: {
+      type: Date,
+      default: () => new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // Default 14-day free trial
+    },
+
+    activatedAt: {
+      type: Date,
+      default: Date.now,
+    },
+
     restaurantId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Restaurant",
