@@ -86,7 +86,31 @@ import {
   sendChatbotMessage
 } from '../controller/chatbotController.js';
 
+import {
+  login,
+  register,
+  getMe
+} from '../controller/authController.js';
+
+import {
+  purchaseLicense,
+  redeemLicense,
+  getLicenseStatus,
+  getMyLicenses
+} from '../controller/licenseController.js';
+
 const router = express.Router();
+
+// Authentication Routes
+router.post('/auth/login', login);
+router.post('/auth/register', register);
+router.get('/auth/me', getMe);
+
+// License & Subscription Recharge Routes
+router.post('/license/purchase', purchaseLicense);
+router.post('/license/redeem', redeemLicense);
+router.get('/license/status', getLicenseStatus);
+router.get('/license/my-keys', getMyLicenses);
 
 // Health
 router.get('/health', getHealthCheck);
