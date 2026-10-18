@@ -6,12 +6,17 @@ import License from "../models/License.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "restaurant360_super_secret_jwt_key";
 
-// Helper: Generate formatted 16-character license voucher code (e.g. RES360-A1B2-C3D4-E5F6)
+// Helper: Generate clean 12-character license key (format: R360-XXXX-XXXX or XXXX-XXXX-XXXX)
 function generateLicenseKey() {
-  const segment1 = crypto.randomBytes(2).toString("hex").toUpperCase();
-  const segment2 = crypto.randomBytes(2).toString("hex").toUpperCase();
-  const segment3 = crypto.randomBytes(2).toString("hex").toUpperCase();
-  return `RES360-${segment1}-${segment2}-${segment3}`;
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const getChunk = (len) => {
+    let result = "";
+    for (let i = 0; i < len; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  };
+  return `R360-${getChunk(4)}-${getChunk(4)}`; // Exactly 12 alphanumeric characters (4-4-4)
 }
 
 // Plan definitions
@@ -167,7 +172,11 @@ export const redeemLicense = async (req, res) => {
       });
     }
 
-    const cleanKey = licenseKey.trim().toUpperCase();
+    let cleanKey = licenseKey.trim().toUpperCase();
+    if (!cleanKey.includes("-") && cleanKey.length === 12) {
+      cleanKey = `${cleanKey.slice(0, 4)}-${cleanKey.slice(4, 8)}-${cleanKey.slice(8, 12)}`;
+    }
+
     const license = await License.findOne({ licenseKey: cleanKey });
 
     if (!license) {
