@@ -12,17 +12,34 @@ export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    if (!email || !password) {
+    // 1. Type validation (Prevent NoSQL Injection)
+    if (typeof email !== "string" || typeof password !== "string") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid input types provided.",
+      });
+    }
+
+    if (!email.trim() || !password.trim()) {
       return res.status(400).json({
         success: false,
         message: "Email and password are required.",
       });
     }
 
+    // 2. Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const cleanEmail = email.trim().toLowerCase();
+    if (!emailRegex.test(cleanEmail)) {
+      return res.status(400).json({
+        success: false,
+        message: "Please enter a valid email address.",
+      });
+    }
+
     let user = await User.findOne({ email: cleanEmail });
 
-    // Agar database me koi user nahi hai aur default admin se login kar rahe hain, auto-seed karo
+    // Auto-seed default admin if database is brand new
     if (!user && cleanEmail === "admin@restaurant360.com" && password === "admin123") {
       const hashedPassword = await bcrypt.hash("admin123", 10);
       user = await User.create({
@@ -30,24 +47,52 @@ export const login = async (req, res) => {
         email: "admin@restaurant360.com",
         password: hashedPassword,
         role: "admin",
+        subscriptionStatus: "active",
+        subscriptionPlan: "yearly",
+        licenseExpiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
       });
     }
 
-    if (!user) {
+    // 3. Brute-Force Check: Check if account is temporarily locked
+    if (user && user.lockUntil && user.lockUntil > new Date()) {
+      const remainingMinutes = Math.ceil((user.lockUntil - new Date()) / (1000 * 60));
+      return res.status(429).json({
+        success: false,
+        message: `Account is temporarily locked due to multiple failed attempts. Please try again in ${remainingMinutes} minute(s).`,
+      });
+    }
+
+    // 4. Timing Attack Mitigation
+    // If user does not exist, run a dummy bcrypt compare so timing is identical
+    const dummyHash = "$2a$10$wK1Wwz8b6L0B0FmO5vW4u.78o8/1uV3N6s5eQ4F6F/uH3L6q.K6QG";
+    const passwordToCompare = user ? user.password : dummyHash;
+    const isPasswordValid = await bcrypt.compare(password, passwordToCompare);
+
+    if (!user || !isPasswordValid) {
+      if (user) {
+        user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
+        // Lock account after 5 consecutive failed attempts
+        if (user.failedLoginAttempts >= 5) {
+          user.lockUntil = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes lockout
+          await user.save();
+          return res.status(429).json({
+            success: false,
+            message: "Account has been locked for 15 minutes due to 5 failed login attempts.",
+          });
+        }
+        await user.save();
+      }
+
       return res.status(401).json({
         success: false,
         message: "Invalid email or password.",
       });
     }
 
-    // Password match check karo
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid email or password.",
-      });
-    }
+    // Successful login: Reset failed attempts & lockout
+    user.failedLoginAttempts = 0;
+    user.lockUntil = null;
+    await user.save();
 
     // JWT Token generate karo (7 days expiry)
     const token = jwt.sign(

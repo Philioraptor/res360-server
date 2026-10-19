@@ -54,6 +54,16 @@ const userSchema = new mongoose.Schema(
       default: Date.now,
     },
 
+    failedLoginAttempts: {
+      type: Number,
+      default: 0,
+    },
+
+    lockUntil: {
+      type: Date,
+      default: null,
+    },
+
     restaurantId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Restaurant",
