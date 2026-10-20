@@ -70,6 +70,16 @@ const userSchema = new mongoose.Schema(
       default: null,
     },
 
+    resetPasswordToken: {
+      type: String,
+      default: null,
+    },
+
+    resetPasswordExpires: {
+      type: Date,
+      default: null,
+    },
+
     restaurantId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Restaurant",
@@ -80,6 +90,9 @@ const userSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+userSchema.index({ email: 1 });
+userSchema.index({ licenseKey: 1 });
 
 const User = mongoose.model("User", userSchema);
 

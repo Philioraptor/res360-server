@@ -364,3 +364,97 @@ export const getMe = async (req, res) => {
     });
   }
 };
+
+// ==========================================
+// 4. FORGOT PASSWORD: Send/Generate reset code
+//    URL: POST /api/auth/forgot-password
+// ==========================================
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, message: "Email is required." });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const user = await User.findOne({ email: cleanEmail });
+
+    if (!user) {
+      return res.json({
+        success: true,
+        message: "If an account with this email exists, a password reset code has been generated.",
+      });
+    }
+
+    // 6-digit numeric OTP reset token
+    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+    user.resetPasswordToken = resetCode;
+    user.resetPasswordExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+    await user.save();
+
+    res.json({
+      success: true,
+      message: "Password reset code generated successfully (valid for 15 mins).",
+      data: {
+        email: cleanEmail,
+        resetCode,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message || "Failed to process request." });
+  }
+};
+
+// ==========================================
+// 5. RESET PASSWORD: Apply new password with reset code
+//    URL: POST /api/auth/reset-password
+// ==========================================
+export const resetPassword = async (req, res) => {
+  try {
+    const { email, resetCode, newPassword } = req.body;
+
+    if (!email || !resetCode || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Email, reset code, and new password are required.",
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "New password must be at least 6 characters long.",
+      });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const user = await User.findOne({
+      email: cleanEmail,
+      resetPasswordToken: resetCode.trim(),
+      resetPasswordExpires: { $gt: new Date() },
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or expired password reset code. Please request a new one.",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    user.resetPasswordToken = null;
+    user.resetPasswordExpires = null;
+    user.failedLoginAttempts = 0;
+    user.lockUntil = null;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: "Password has been reset successfully! You can now log in with your new password.",
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message || "Failed to reset password." });
+  }
+};
+

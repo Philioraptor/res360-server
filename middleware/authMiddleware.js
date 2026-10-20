@@ -4,7 +4,7 @@ import User from "../models/User.js";
 const JWT_SECRET = process.env.JWT_SECRET || "restaurant360_super_secret_jwt_key";
 
 // ==========================================
-// 1. AUTHENTICATION: Verify JWT Token
+// 1. AUTHENTICATION: Verify JWT Token & Attach Tenant Scope
 // ==========================================
 export const protect = async (req, res, next) => {
   try {
@@ -45,6 +45,9 @@ export const protect = async (req, res, next) => {
     }
 
     req.user = user;
+    // Multi-tenant Restaurant Anchor: Admin user ID is the restaurant tenant id
+    req.restaurantId = user.restaurantId || user._id;
+
     next();
   } catch (error) {
     res.status(500).json({
@@ -62,7 +65,7 @@ export const authorize = (...roles) => {
     if (!req.user || !roles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
-        message: `Forbidden: User role '${req.user?.role || "guest"}' is not authorized to perform this action.`,
+        message: `Forbidden: User role '${req.user?.role || "guest"}' is not authorized to access this resource.`,
       });
     }
     next();

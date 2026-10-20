@@ -89,7 +89,9 @@ import {
 import {
   login,
   register,
-  getMe
+  getMe,
+  forgotPassword,
+  resetPassword
 } from '../controller/authController.js';
 
 import {
@@ -98,6 +100,12 @@ import {
   getLicenseStatus,
   getMyLicenses
 } from '../controller/licenseController.js';
+
+import {
+  createPaymentOrder,
+  verifyPayment,
+  refundPayment
+} from '../controller/paymentController.js';
 
 import {
   protect,
@@ -113,7 +121,13 @@ const router = express.Router();
 router.get('/health', getHealthCheck);
 router.post('/auth/login', login);
 router.post('/auth/register', register);
-router.post('/license/purchase', purchaseLicense); // Called by Portfolio checkout
+router.post('/auth/forgot-password', forgotPassword);
+router.post('/auth/reset-password', resetPassword);
+
+// Payment Gateway Simulation (Success & Failure Verification)
+router.post('/payment/create-order', createPaymentOrder);
+router.post('/payment/verify', verifyPayment);
+router.post('/license/purchase', purchaseLicense); // Direct purchase wrapper
 
 // Digital Menu preview (publicly viewable by diners)
 router.get('/menu', getMenu);
@@ -126,6 +140,7 @@ router.get('/auth/me', protect, getMe);
 router.get('/license/status', protect, authorize('admin', 'manager'), getLicenseStatus);
 router.post('/license/redeem', protect, authorize('admin', 'manager'), redeemLicense);
 router.get('/license/my-keys', protect, authorize('admin', 'manager'), getMyLicenses);
+router.post('/payment/refund', protect, authorize('admin', 'manager'), refundPayment);
 
 // ==========================================
 // 3. FULL SAAS PROTECTED (Token + ACTIVE Subscription Required)
