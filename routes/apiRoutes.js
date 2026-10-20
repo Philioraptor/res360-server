@@ -99,99 +99,110 @@ import {
   getMyLicenses
 } from '../controller/licenseController.js';
 
+import {
+  protect,
+  authorize,
+  requireActiveSubscription
+} from '../middleware/authMiddleware.js';
+
 const router = express.Router();
 
-// Authentication Routes
+// ==========================================
+// 1. PUBLIC ROUTES (No Token Required)
+// ==========================================
+router.get('/health', getHealthCheck);
 router.post('/auth/login', login);
 router.post('/auth/register', register);
-router.get('/auth/me', getMe);
+router.post('/license/purchase', purchaseLicense); // Called by Portfolio checkout
 
-// License & Subscription Recharge Routes
-router.post('/license/purchase', purchaseLicense);
-router.post('/license/redeem', redeemLicense);
-router.get('/license/status', getLicenseStatus);
-router.get('/license/my-keys', getMyLicenses);
-
-// Health
-router.get('/health', getHealthCheck);
-
-// Dashboard
-router.get('/dashboard', getDashboardSummary);
-router.get('/dashboard/summary', getDashboardSummary);
-
-// Menu
+// Digital Menu preview (publicly viewable)
 router.get('/menu', getMenu);
 router.get('/menu/categories', getMenuCategories);
 
+// ==========================================
+// 2. AUTHENTICATED ROUTES (Token Required, Even if Expired)
+// ==========================================
+router.get('/auth/me', protect, getMe);
+router.get('/license/status', protect, getLicenseStatus);
+router.post('/license/redeem', protect, redeemLicense); // Redeem key to renew when expired
+router.get('/license/my-keys', protect, getMyLicenses);
+
+// ==========================================
+// 3. FULL SAAS PROTECTED (Token + ACTIVE Subscription Required)
+// ==========================================
+// Dashboard
+router.get('/dashboard', protect, requireActiveSubscription, getDashboardSummary);
+router.get('/dashboard/summary', protect, requireActiveSubscription, getDashboardSummary);
+
 // Products
-router.get('/products', getProducts);
-router.post('/products', createProduct);
-router.put('/products/:id', updateProduct);
-router.delete('/products/:id', deleteProduct);
+router.get('/products', protect, requireActiveSubscription, getProducts);
+router.post('/products', protect, requireActiveSubscription, createProduct);
+router.put('/products/:id', protect, requireActiveSubscription, updateProduct);
+router.delete('/products/:id', protect, requireActiveSubscription, deleteProduct);
 
 // Categories
-router.get('/categories', getCategories);
-router.get('/categories/:id', getCategoryById);
-router.post('/categories', createCategory);
-router.put('/categories/:id', updateCategory);
-router.put('/categories/:id/status', updateCategoryStatus);
-router.delete('/categories/:id', deleteCategory);
+router.get('/categories', protect, requireActiveSubscription, getCategories);
+router.get('/categories/:id', protect, requireActiveSubscription, getCategoryById);
+router.post('/categories', protect, requireActiveSubscription, createCategory);
+router.put('/categories/:id', protect, requireActiveSubscription, updateCategory);
+router.put('/categories/:id/status', protect, requireActiveSubscription, updateCategoryStatus);
+router.delete('/categories/:id', protect, requireActiveSubscription, deleteCategory);
 
-// Addons (MongoDB CRUD)
-router.get('/addons', getAddonGroups);
-router.post('/addons', createAddonGroup);
-router.put('/addons/:id', updateAddonGroup);
-router.delete('/addons/:id', deleteAddonGroup);
+// Addons
+router.get('/addons', protect, requireActiveSubscription, getAddonGroups);
+router.post('/addons', protect, requireActiveSubscription, createAddonGroup);
+router.put('/addons/:id', protect, requireActiveSubscription, updateAddonGroup);
+router.delete('/addons/:id', protect, requireActiveSubscription, deleteAddonGroup);
 
 // Inventory
-router.get('/inventory', getInventory);
-router.get('/inventory/low-stock', getLowStockInventory);
-router.get('/inventory/:id', getInventoryItemById);
-router.post('/inventory', createInventoryItem);
-router.put('/inventory/:id', updateInventoryItem);
-router.delete('/inventory/:id', deleteInventoryItem);
+router.get('/inventory', protect, requireActiveSubscription, getInventory);
+router.get('/inventory/low-stock', protect, requireActiveSubscription, getLowStockInventory);
+router.get('/inventory/:id', protect, requireActiveSubscription, getInventoryItemById);
+router.post('/inventory', protect, requireActiveSubscription, createInventoryItem);
+router.put('/inventory/:id', protect, requireActiveSubscription, updateInventoryItem);
+router.delete('/inventory/:id', protect, requireActiveSubscription, deleteInventoryItem);
 
 // Tables
-router.get('/tables', getTables);
-router.get('/tables/:id', getTableById);
-router.post('/tables', createTable);
-router.put('/tables/:id/status', updateTableStatus);
-router.delete('/tables/:id', deleteTable);
+router.get('/tables', protect, requireActiveSubscription, getTables);
+router.get('/tables/:id', protect, requireActiveSubscription, getTableById);
+router.post('/tables', protect, requireActiveSubscription, createTable);
+router.put('/tables/:id/status', protect, requireActiveSubscription, updateTableStatus);
+router.delete('/tables/:id', protect, requireActiveSubscription, deleteTable);
 
-// KDS
-router.get('/kds/tickets', getKdsTickets);
-router.get('/kds/tickets/:id', getKdsTicketById);
-router.post('/kds/tickets', createKdsTicket);
-router.put('/kds/tickets/:id/advance', advanceKdsTicket);
-router.put('/kds/tickets/:id/items/:itemId/check', toggleKdsItemCheck);
-router.delete('/kds/tickets/:id', deleteKdsTicket);
+// KDS (Kitchen Display System)
+router.get('/kds/tickets', protect, requireActiveSubscription, getKdsTickets);
+router.get('/kds/tickets/:id', protect, requireActiveSubscription, getKdsTicketById);
+router.post('/kds/tickets', protect, requireActiveSubscription, createKdsTicket);
+router.put('/kds/tickets/:id/advance', protect, requireActiveSubscription, advanceKdsTicket);
+router.put('/kds/tickets/:id/items/:itemId/check', protect, requireActiveSubscription, toggleKdsItemCheck);
+router.delete('/kds/tickets/:id', protect, requireActiveSubscription, deleteKdsTicket);
 
 // Customers
-router.get('/customers', getCustomers);
-router.get('/customers/:id', getCustomerById);
-router.post('/customers', createCustomer);
-router.put('/customers/:id', updateCustomer);
-router.delete('/customers/:id', deleteCustomer);
+router.get('/customers', protect, requireActiveSubscription, getCustomers);
+router.get('/customers/:id', protect, requireActiveSubscription, getCustomerById);
+router.post('/customers', protect, requireActiveSubscription, createCustomer);
+router.put('/customers/:id', protect, requireActiveSubscription, updateCustomer);
+router.delete('/customers/:id', protect, requireActiveSubscription, deleteCustomer);
 
-// Orders
-router.get('/orders', getOrders);
-router.get('/orders/:id', getOrderById);
-router.post('/orders', createOrder);
-router.put('/orders/:id/status', updateOrderStatus);
-router.delete('/orders/:id', deleteOrder);
+// Orders & Billing
+router.get('/orders', protect, requireActiveSubscription, getOrders);
+router.get('/orders/:id', protect, requireActiveSubscription, getOrderById);
+router.post('/orders', protect, requireActiveSubscription, createOrder);
+router.put('/orders/:id/status', protect, requireActiveSubscription, updateOrderStatus);
+router.delete('/orders/:id', protect, requireActiveSubscription, deleteOrder);
 
 // Reports
-router.get('/reports', getReports);
-router.get('/reports/sales', getSaleReport);
-router.get('/reports/customers', getCustomerReports);
+router.get('/reports', protect, requireActiveSubscription, getReports);
+router.get('/reports/sales', protect, requireActiveSubscription, getSaleReport);
+router.get('/reports/customers', protect, requireActiveSubscription, getCustomerReports);
 
 // Settings
-router.get('/settings', getSettings);
-router.put('/settings', updateSettings);
-router.post('/settings/reset', resetSettings);
+router.get('/settings', protect, requireActiveSubscription, getSettings);
+router.put('/settings', protect, requireActiveSubscription, updateSettings);
+router.post('/settings/reset', protect, requireActiveSubscription, resetSettings);
 
 // Chatbot
-router.get('/chatbot', getChatbotSuggestions);
-router.post('/chatbot/message', sendChatbotMessage);
+router.get('/chatbot', protect, requireActiveSubscription, getChatbotSuggestions);
+router.post('/chatbot/message', protect, requireActiveSubscription, sendChatbotMessage);
 
 export default router;
