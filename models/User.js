@@ -21,9 +21,15 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
 
+    restaurantName: {
+      type: String,
+      default: "Restaurant 360",
+      trim: true,
+    },
+
     role: {
       type: String,
-      enum: ["admin", "manager", "staff"],
+      enum: ["admin", "manager", "cashier", "kitchen", "waiter", "staff"],
       default: "staff",
     },
 

@@ -1,26 +1,13 @@
 import crypto from "crypto";
-import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import License from "../models/License.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "restaurant360_super_secret_jwt_key";
-
-// Helper: Generate clean 12-character license key (format: R360-XXXX-XXXX or XXXX-XXXX-XXXX)
-function generateLicenseKey() {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const getChunk = (len) => {
-    let result = "";
-    for (let i = 0; i < len; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
-  };
-  return `R360-${getChunk(4)}-${getChunk(4)}`; // Exactly 12 alphanumeric characters (4-4-4)
-}
+const LICENSE_SECRET = process.env.LICENSE_SECRET || "res360_cryptographic_license_master_secret_2026";
 
 // Plan definitions
-const PLAN_CONFIG = {
+export const PLAN_CONFIG = {
   monthly: {
     planName: "Monthly Plan",
     durationDays: 30,
@@ -43,54 +30,96 @@ const PLAN_CONFIG = {
   },
 };
 
+// =========================================================================
+// CRYPTOGRAPHIC HELPER: Generate Encrypted & Tamper-Proof 12-char Key
+// Format: R360-<4 char payload (plan + nonce)>-<4 char HMAC signature>
+// Example: R360-YA4F-7D29
+// =========================================================================
+export function generateEncryptedLicenseKey(planId = "yearly") {
+  const planCode = planId === "yearly" ? "Y" : planId === "custom" ? "C" : "M";
+  // 3 random hexadecimal/alphanumeric characters for entropy
+  const nonce = crypto.randomBytes(2).toString("hex").toUpperCase().slice(0, 3);
+  const payload = `${planCode}${nonce}`; // Exactly 4 chars, e.g. "Y8A2"
+
+  // Cryptographic HMAC-SHA256 signature using the server's private secret
+  const hmac = crypto.createHmac("sha256", LICENSE_SECRET);
+  hmac.update(payload);
+  const signature = hmac.digest("hex").toUpperCase().slice(0, 4); // 4 chars
+
+  return `R360-${payload}-${signature}`;
+}
+
+// =========================================================================
+// CRYPTOGRAPHIC HELPER: Verify Signature & Decrypt Plan
+// =========================================================================
+export function verifyAndDecryptLicenseKey(licenseKey) {
+  if (!licenseKey || typeof licenseKey !== "string") {
+    return { valid: false, message: "License key is required." };
+  }
+
+  let clean = licenseKey.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (!clean.startsWith("R360") && clean.length === 8) {
+    clean = "R360" + clean;
+  }
+
+  if (clean.length !== 12 || !clean.startsWith("R360")) {
+    return { valid: false, message: "Invalid license key format. Must be R360-XXXX-XXXX." };
+  }
+
+  const payload = clean.slice(4, 8); // 4 chars
+  const signature = clean.slice(8, 12); // 4 chars
+
+  // Verify HMAC-SHA256 signature against private secret
+  const hmac = crypto.createHmac("sha256", LICENSE_SECRET);
+  hmac.update(payload);
+  const expectedSignature = hmac.digest("hex").toUpperCase().slice(0, 4);
+
+  if (signature !== expectedSignature) {
+    return {
+      valid: false,
+      message: "Cryptographic signature check failed: Invalid or tampered license key.",
+    };
+  }
+
+  // Decrypt plan from payload
+  const planCode = payload[0];
+  const planId = planCode === "Y" ? "yearly" : planCode === "C" ? "custom" : "monthly";
+
+  return {
+    valid: true,
+    planId,
+    payload,
+    formattedKey: `R360-${payload}-${signature}`,
+  };
+}
+
 // ==========================================
-// 1. PURCHASE LICENSE (Called by Portfolio site during recharge/checkout)
+// 1. PURCHASE LICENSE (Called by Portfolio site during checkout)
+//    NO password required - pure license voucher generation!
 //    URL: POST /api/license/purchase
 // ==========================================
 export const purchaseLicense = async (req, res) => {
   try {
-    const { email, password, planId = "yearly", name } = req.body;
+    const { email, name, planId = "yearly", paymentDetails = {} } = req.body;
 
-    if (!email || !password) {
+    if (!email || !name) {
       return res.status(400).json({
         success: false,
-        message: "User ID / Email and password are required.",
+        message: "Customer name and email address are required for invoice/voucher generation.",
       });
     }
 
     const cleanEmail = email.trim().toLowerCase();
-    let user = await User.findOne({ email: cleanEmail });
-
-    // Agar user pehle se exist karta hai, verify password
-    if (user) {
-      const isMatch = await bcrypt.compare(password, user.password);
-      if (!isMatch) {
-        return res.status(401).json({
-          success: false,
-          message: "Incorrect password for this User ID / Email.",
-        });
-      }
-    } else {
-      // Agar user pehli baar purchase kar raha hai, create account
-      const hashedPassword = await bcrypt.hash(password, 10);
-      user = await User.create({
-        name: name ? name.trim() : cleanEmail.split("@")[0],
-        email: cleanEmail,
-        password: hashedPassword,
-        role: "admin",
-        subscriptionStatus: "trial",
-        subscriptionPlan: "trial",
-        licenseExpiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-      });
-    }
-
+    const cleanName = name.trim();
     const planInfo = PLAN_CONFIG[planId] || PLAN_CONFIG.monthly;
-    let licenseKey = generateLicenseKey();
 
-    // Ensure uniqueness
+    // Generate cryptographic encrypted key
+    let licenseKey = generateEncryptedLicenseKey(planId);
+
+    // Ensure uniqueness in DB
     let existing = await License.findOne({ licenseKey });
     while (existing) {
-      licenseKey = generateLicenseKey();
+      licenseKey = generateEncryptedLicenseKey(planId);
       existing = await License.findOne({ licenseKey });
     }
 
@@ -103,12 +132,13 @@ export const purchaseLicense = async (req, res) => {
       currency: "USD",
       status: "unused",
       purchasedByEmail: cleanEmail,
-      purchasedByName: user.name || "Restaurant Owner",
+      purchasedByName: cleanName,
+      paymentDetails,
     });
 
     res.status(201).json({
       success: true,
-      message: "License key generated successfully!",
+      message: "Encrypted license key generated successfully!",
       data: {
         licenseKey: license.licenseKey,
         plan: license.plan,
@@ -118,6 +148,7 @@ export const purchaseLicense = async (req, res) => {
         currency: license.currency,
         paymentId: license.paymentId,
         purchasedByEmail: license.purchasedByEmail,
+        purchasedByName: license.purchasedByName,
         createdAt: license.createdAt,
       },
     });
@@ -172,17 +203,21 @@ export const redeemLicense = async (req, res) => {
       });
     }
 
-    let cleanKey = licenseKey.trim().toUpperCase();
-    if (!cleanKey.includes("-") && cleanKey.length === 12) {
-      cleanKey = `${cleanKey.slice(0, 4)}-${cleanKey.slice(4, 8)}-${cleanKey.slice(8, 12)}`;
+    // Cryptographic signature check & decryption
+    const verifyResult = verifyAndDecryptLicenseKey(licenseKey);
+    if (!verifyResult.valid) {
+      return res.status(400).json({
+        success: false,
+        message: verifyResult.message,
+      });
     }
 
-    const license = await License.findOne({ licenseKey: cleanKey });
+    const license = await License.findOne({ licenseKey: verifyResult.formattedKey });
 
     if (!license) {
       return res.status(404).json({
         success: false,
-        message: "Invalid license key. Please check the code and try again.",
+        message: "License key not found in central registry.",
       });
     }
 
@@ -200,11 +235,10 @@ export const redeemLicense = async (req, res) => {
       });
     }
 
-    // Calculate new expiration date (Recharge stacking model)
+    // Calculate new expiration date (Stacking model)
     const now = new Date();
     let baseDate = now;
 
-    // Agar user ka purana plan abhi tak expire nahi hua hai, uske aage extend karo
     if (user.licenseExpiresAt && new Date(user.licenseExpiresAt) > now) {
       baseDate = new Date(user.licenseExpiresAt);
     }

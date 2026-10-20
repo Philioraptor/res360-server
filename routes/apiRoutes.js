@@ -115,7 +115,7 @@ router.post('/auth/login', login);
 router.post('/auth/register', register);
 router.post('/license/purchase', purchaseLicense); // Called by Portfolio checkout
 
-// Digital Menu preview (publicly viewable)
+// Digital Menu preview (publicly viewable by diners)
 router.get('/menu', getMenu);
 router.get('/menu/categories', getMenuCategories);
 
@@ -123,83 +123,83 @@ router.get('/menu/categories', getMenuCategories);
 // 2. AUTHENTICATED ROUTES (Token Required, Even if Expired)
 // ==========================================
 router.get('/auth/me', protect, getMe);
-router.get('/license/status', protect, getLicenseStatus);
-router.post('/license/redeem', protect, redeemLicense); // Redeem key to renew when expired
-router.get('/license/my-keys', protect, getMyLicenses);
+router.get('/license/status', protect, authorize('admin', 'manager'), getLicenseStatus);
+router.post('/license/redeem', protect, authorize('admin', 'manager'), redeemLicense);
+router.get('/license/my-keys', protect, authorize('admin', 'manager'), getMyLicenses);
 
 // ==========================================
 // 3. FULL SAAS PROTECTED (Token + ACTIVE Subscription Required)
 // ==========================================
-// Dashboard
+// Dashboard (Admins, Managers, Cashiers)
 router.get('/dashboard', protect, requireActiveSubscription, getDashboardSummary);
 router.get('/dashboard/summary', protect, requireActiveSubscription, getDashboardSummary);
 
-// Products
+// Products & Menu (Read by all operational staff; Modifications by Admin/Manager)
 router.get('/products', protect, requireActiveSubscription, getProducts);
-router.post('/products', protect, requireActiveSubscription, createProduct);
-router.put('/products/:id', protect, requireActiveSubscription, updateProduct);
-router.delete('/products/:id', protect, requireActiveSubscription, deleteProduct);
+router.post('/products', protect, requireActiveSubscription, authorize('admin', 'manager'), createProduct);
+router.put('/products/:id', protect, requireActiveSubscription, authorize('admin', 'manager'), updateProduct);
+router.delete('/products/:id', protect, requireActiveSubscription, authorize('admin', 'manager'), deleteProduct);
 
 // Categories
 router.get('/categories', protect, requireActiveSubscription, getCategories);
 router.get('/categories/:id', protect, requireActiveSubscription, getCategoryById);
-router.post('/categories', protect, requireActiveSubscription, createCategory);
-router.put('/categories/:id', protect, requireActiveSubscription, updateCategory);
-router.put('/categories/:id/status', protect, requireActiveSubscription, updateCategoryStatus);
-router.delete('/categories/:id', protect, requireActiveSubscription, deleteCategory);
+router.post('/categories', protect, requireActiveSubscription, authorize('admin', 'manager'), createCategory);
+router.put('/categories/:id', protect, requireActiveSubscription, authorize('admin', 'manager'), updateCategory);
+router.put('/categories/:id/status', protect, requireActiveSubscription, authorize('admin', 'manager'), updateCategoryStatus);
+router.delete('/categories/:id', protect, requireActiveSubscription, authorize('admin', 'manager'), deleteCategory);
 
 // Addons
 router.get('/addons', protect, requireActiveSubscription, getAddonGroups);
-router.post('/addons', protect, requireActiveSubscription, createAddonGroup);
-router.put('/addons/:id', protect, requireActiveSubscription, updateAddonGroup);
-router.delete('/addons/:id', protect, requireActiveSubscription, deleteAddonGroup);
+router.post('/addons', protect, requireActiveSubscription, authorize('admin', 'manager'), createAddonGroup);
+router.put('/addons/:id', protect, requireActiveSubscription, authorize('admin', 'manager'), updateAddonGroup);
+router.delete('/addons/:id', protect, requireActiveSubscription, authorize('admin', 'manager'), deleteAddonGroup);
 
-// Inventory
+// Inventory (Read by staff; CRUD by Admin/Manager)
 router.get('/inventory', protect, requireActiveSubscription, getInventory);
 router.get('/inventory/low-stock', protect, requireActiveSubscription, getLowStockInventory);
 router.get('/inventory/:id', protect, requireActiveSubscription, getInventoryItemById);
-router.post('/inventory', protect, requireActiveSubscription, createInventoryItem);
-router.put('/inventory/:id', protect, requireActiveSubscription, updateInventoryItem);
-router.delete('/inventory/:id', protect, requireActiveSubscription, deleteInventoryItem);
+router.post('/inventory', protect, requireActiveSubscription, authorize('admin', 'manager'), createInventoryItem);
+router.put('/inventory/:id', protect, requireActiveSubscription, authorize('admin', 'manager'), updateInventoryItem);
+router.delete('/inventory/:id', protect, requireActiveSubscription, authorize('admin', 'manager'), deleteInventoryItem);
 
-// Tables
+// Tables (All front-of-house staff)
 router.get('/tables', protect, requireActiveSubscription, getTables);
 router.get('/tables/:id', protect, requireActiveSubscription, getTableById);
-router.post('/tables', protect, requireActiveSubscription, createTable);
+router.post('/tables', protect, requireActiveSubscription, authorize('admin', 'manager'), createTable);
 router.put('/tables/:id/status', protect, requireActiveSubscription, updateTableStatus);
-router.delete('/tables/:id', protect, requireActiveSubscription, deleteTable);
+router.delete('/tables/:id', protect, requireActiveSubscription, authorize('admin', 'manager'), deleteTable);
 
-// KDS (Kitchen Display System)
+// KDS (Kitchen Display System - Chefs, Cashiers, Waiters, Admins)
 router.get('/kds/tickets', protect, requireActiveSubscription, getKdsTickets);
 router.get('/kds/tickets/:id', protect, requireActiveSubscription, getKdsTicketById);
 router.post('/kds/tickets', protect, requireActiveSubscription, createKdsTicket);
 router.put('/kds/tickets/:id/advance', protect, requireActiveSubscription, advanceKdsTicket);
 router.put('/kds/tickets/:id/items/:itemId/check', protect, requireActiveSubscription, toggleKdsItemCheck);
-router.delete('/kds/tickets/:id', protect, requireActiveSubscription, deleteKdsTicket);
+router.delete('/kds/tickets/:id', protect, requireActiveSubscription, authorize('admin', 'manager'), deleteKdsTicket);
 
 // Customers
 router.get('/customers', protect, requireActiveSubscription, getCustomers);
 router.get('/customers/:id', protect, requireActiveSubscription, getCustomerById);
 router.post('/customers', protect, requireActiveSubscription, createCustomer);
 router.put('/customers/:id', protect, requireActiveSubscription, updateCustomer);
-router.delete('/customers/:id', protect, requireActiveSubscription, deleteCustomer);
+router.delete('/customers/:id', protect, requireActiveSubscription, authorize('admin', 'manager'), deleteCustomer);
 
-// Orders & Billing
+// Orders & Billing (Admins, Cashiers, Waiters)
 router.get('/orders', protect, requireActiveSubscription, getOrders);
 router.get('/orders/:id', protect, requireActiveSubscription, getOrderById);
 router.post('/orders', protect, requireActiveSubscription, createOrder);
 router.put('/orders/:id/status', protect, requireActiveSubscription, updateOrderStatus);
-router.delete('/orders/:id', protect, requireActiveSubscription, deleteOrder);
+router.delete('/orders/:id', protect, requireActiveSubscription, authorize('admin', 'manager'), deleteOrder);
 
-// Reports
-router.get('/reports', protect, requireActiveSubscription, getReports);
-router.get('/reports/sales', protect, requireActiveSubscription, getSaleReport);
-router.get('/reports/customers', protect, requireActiveSubscription, getCustomerReports);
+// Reports (Strictly Admin & Manager Only)
+router.get('/reports', protect, requireActiveSubscription, authorize('admin', 'manager'), getReports);
+router.get('/reports/sales', protect, requireActiveSubscription, authorize('admin', 'manager'), getSaleReport);
+router.get('/reports/customers', protect, requireActiveSubscription, authorize('admin', 'manager'), getCustomerReports);
 
-// Settings
-router.get('/settings', protect, requireActiveSubscription, getSettings);
-router.put('/settings', protect, requireActiveSubscription, updateSettings);
-router.post('/settings/reset', protect, requireActiveSubscription, resetSettings);
+// Settings (Strictly Admin & Manager Only)
+router.get('/settings', protect, requireActiveSubscription, authorize('admin', 'manager'), getSettings);
+router.put('/settings', protect, requireActiveSubscription, authorize('admin', 'manager'), updateSettings);
+router.post('/settings/reset', protect, requireActiveSubscription, authorize('admin', 'manager'), resetSettings);
 
 // Chatbot
 router.get('/chatbot', protect, requireActiveSubscription, getChatbotSuggestions);
